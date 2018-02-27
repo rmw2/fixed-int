@@ -4,13 +4,13 @@
  *
  *********************************************************************/
 
-const { 
-	FixedInt, 
-	ALU, 
-	SIGN_MASK, 
-	VAL_MASK, 
-	MODULUS, 
-	MAX_SAFE_HI 
+const {
+	FixedInt,
+	ALU,
+	SIGN_MASK,
+	VAL_MASK,
+	MODULUS,
+	MAX_SAFE_HI
 } = require('./FixedInt.js');
 
 
@@ -68,7 +68,7 @@ describe('FixedInt objects', () => {
 	// Repeat set of tests for all safe integer sizes
 	for (const size of [1,2,4]) {
 		test(`correctly determine ${size}-byte equality, valueOf`, () => {
-			for (let i = 0; i < N_RAND; i++) {			
+			for (let i = 0; i < N_RAND; i++) {
 				/* Test valueOf */
 				let x = random(size);
 
@@ -214,7 +214,7 @@ describe('FixedInt objects', () => {
 	});
 
 	test(`hold values larger than 2^53-1`, () => {
-		// Just check that the values come out right ? 
+		// Just check that the values come out right ?
 		// maybe this shouldn't be it's own test...
 		expect(MAX[8]).toEqual(MAX[8].clone());
 		expect(MAX[8].lo).toBe(VAL_MASK[4]);
@@ -239,7 +239,7 @@ describe('8,16, & 32-bit ALU', () => {
 				expect(ALU.OF).toBe(false);
 				expect(ALU.SF).toBe(x.isNegative());
 				expect(ALU.ZF).toBe(x.equals(ZERO[size]));
-				
+
 				// Adding random numbers without overflow
 				let val1 = (MODULUS[size] * Math.random() / 2 | 0) >>> 0;
 				let val2 = (MODULUS[size] * Math.random() / 2 | 0) >>> 0;
@@ -387,7 +387,7 @@ describe('64-bit ALU Arithmetic', () => {
 			// Adding zero
 			let x = random(8);
 			expect(ALU.add(x, ZERO[8])).toEqual(x);
-			
+
 			// Adding random numbers
 			let val1 = (Number.MAX_SAFE_INTEGER * Math.random() / 2 | 0) >>> 0;
 			let val2 = (Number.MAX_SAFE_INTEGER * Math.random() / 2 | 0) >>> 0;

@@ -346,6 +346,7 @@ export class ALU {
   }
 
   /**
+   * Perform subtraction as a + (-b), with the opposite carry flag
    * @param {FixedInt} a
    * @param {FixedInt|Number} b
    * @returns {FixedInt}
@@ -353,7 +354,11 @@ export class ALU {
   static sub(a, b) {
     if (!(b instanceof FixedInt))
       b = new FixedInt(a.size, b);
-    return this.add(a, ALU.neg(b));
+
+    const result = this.add(a, ALU.neg(b));
+    _CF = !_CF; // Only difference between A - B and A + (-B)
+
+    return result;
   }
 
   /**
