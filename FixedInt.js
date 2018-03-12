@@ -187,7 +187,11 @@ export default class FixedInt {
    * number.  Accuracy guaranteed iff this.isSafeInteger().
    * @returns {Number}
    */
-  valueOf() {
+  valueOf(signed=false) {
+    if (signed && this.isNegative()) {
+      return -ALU.neg(this);
+    }
+
     return (this.size == 8)
       ? MODULUS[4]*this.hi + this.lo
       : this.lo;
@@ -203,11 +207,43 @@ export default class FixedInt {
 
   /**
    * Return a new FixedInt with the same value as this with the
-   * specified size, truncating if necessary
+   * specified size, truncating if necessary.  If size is larger
+   * than this.size, the value is sign extended or zero extendend
+   * according to the boolean signExtend
+   * @param {Int} size          -- the new size
+   * @param {Bool} [signExtend] -- whether the result should preserve sign
    * @returns {FixedInt}
    */
-  toSize(size) {
-    return new FixedInt(size, this.lo, this.hi);
+  toSize(size, signExtend=false) {
+    if (signExtend && size > this.size && this.isNegative())
+      // Sign Extend the result
+      return new FixedInt(size, (this.lo | ~VAL_MASK[this.size]) >>> 0, VAL_MASK[4]);
+    else
+      // Zero-extend or shrink
+      return new FixedInt(size, this.lo, this.hi);
+  }
+
+  /**
+   * Split this into two new FixedInts with half the current size
+   * (This can come in handy for multiplication/division)
+   * @returns {{hi: FixedInt, lo: FixedInt}}
+   */
+  split() {
+    switch (this.size) {
+      case 8:
+        return {
+          lo: new FixedInt(4, this.lo),
+          hi: new FixedInt(4, this.hi)
+        };
+      case 4:
+      case 2:
+        return {
+          lo: new FixedInt(1, this.lo),
+          hi: new FixedInt(1, this.lo >>> 4*this.size)
+        };
+      case 1:
+        throw new FixedIntError('Cannot split a 1-byte value');
+    }
   }
 
   /**
@@ -362,6 +398,7 @@ export class ALU {
   }
 
   /**
+   * Unsigned multiplication
    * @param {FixedInt} a
    * @param {FixedInt|Number} b
    * @returns {FixedInt}
@@ -369,44 +406,97 @@ export class ALU {
   static mul(a, b) {
     ({a, b} = validateOperands(a, b));
 
-    // Double the size if we can fit it
-    // if (a.size < 8) {
-    //   a = a.toSize(2*a.size);
-    //   b = b.toSize(2*a.size);
-    // }
+    //Double the size if we can fit it
+    if (a.size < 8) {
+      a = a.toSize(2*a.size);
+      b = b.toSize(2*b.size);
+    } else {
+      throw new FixedIntError('64-bit multiplication not yet implemented')
+    }
 
     // Base case
     if (b == 0) return new FixedInt(a.size);
 
-    // Recursive definition of multiplication
-    let product = this.shl(this.mul(a, this.sar(b, 1)), 1);
-    if (b.isOdd()) {
-        product = this.add(product, a);
-    }
+    let product = _mul(_abs(a), _abs(b));
+
+    if (a.isNegative() ^ b.isNegative())
+      product = ALU.neg(product);
 
     return product;
   }
 
+  // /**
+  //  * Signed multiplication
+  //  * @param {FixedInt} a
+  //  * @param {FixedInt|Number} b
+  //  * @returns {FixedInt}
+  //  */
+  // static imul(a, b) {
+  //   ({a, b} = validateOperands(a, b));
+
+  //   //Double the size if we can fit it
+  //   if (a.size < 8) {
+  //     a = a.toSize(2*a.size, true);
+  //     b = b.toSize(2*a.size, true);
+  //   } else {
+  //     throw new FixedInterror('64-bit multiplication not yet implemented')
+  //   }
+
+  //   // Base case
+  //   if (+b == 0) return new FixedInt(a.size);
+
+
+
+  //   return product;
+  // }
+
   /**
+   * Unsigned division
    * @param {FixedInt} a
    * @param {FixedInt|Number} b
    * @returns {FixedInt}
    */
   static div(a, b) {
-    ({a, b} = validateOperands(a, b));
+    ({a, b} = validateDivision(a, b));
 
     if (+b === 0)
       throw new FixedIntError('Division by zero');
 
     // Use recursive helper for division
-    let [result, mod] = divmod(a,b);
+    let [result, mod] = _divmod(a, b.toSize(a.size));
 
     // Store modulus in aux
+    _aux = mod.toSize(b.size);
+    return result;
+  }
+
+  /**
+   * Signed division
+   * @param {FixedInt} a
+   * @param {FixedInt|Number} b
+   * @returns {FixedInt}
+   */
+  static idiv(a, b) {
+    ({a, b} = validateDivision(a, b));
+
+    if (+b === 0)
+      throw new FixedIntError('Division by zero');
+
+    // Use recursive helper on absolute values of operands
+    let [result, mod] = _divmod(_abs(a), _abs(b.toSize(a.size)));
+
+    // Correct result for operand signs
+    if (a.isNegative() ^ b.isNegative())
+      result = ALU.neg(result);
+    if (a.isNegative())
+      mod = ALU.neg(mod);
+
     _aux = mod;
     return result;
   }
 
   /**
+   * Logical/arithmetic left shift
    * @param {FixedInt} a
    * @param {FixedInt|Number} b
    * @returns {FixedInt}
@@ -436,6 +526,7 @@ export class ALU {
   }
 
   /**
+   * Arithmetic right shift
    * @param {FixedInt} a
    * @param {FixedInt|Number} b
    * @returns {FixedInt}
@@ -472,6 +563,7 @@ export class ALU {
   }
 
   /**
+   * Logical Right shift
    * @param {FixedInt} a
    * @param {FixedInt|Number} b
    * @returns {FixedInt}
@@ -593,22 +685,53 @@ export class ALU {
  * @param {FixedInt} divisor
  * @returns {[FixedInt, FixedInt]} the quotient and remainder
  */
-function divmod(dividend, divisor) {
+function _divmod(dividend, divisor) {
   // Base case
-  if (dividend.isLessThan(divisor)) {
+  if (dividend.isLessThan(divisor) || +divisor == 0) {
     return [new FixedInt(divisor.size, 0), dividend];
   }
 
   // Recursively divide by divisor * 2
-  let [quotient, remainder] = divmod(dividend, ALU.shl(divisor,1));
+  let [quotient, remainder] = _divmod(dividend, ALU.shl(divisor,1));
   quotient = ALU.shl(quotient, 1);
 
-  if (divisor.isLessThan(remainder)) {
+  if (divisor.isLessThan(remainder) || divisor.equals(remainder))  {
     quotient = ALU.add(quotient, 1);
     remainder = ALU.sub(remainder, divisor);
   }
 
   return [quotient, remainder];
+}
+
+/**
+ * Recursive helper function to perform multiplication
+ * @param {FixedInt} multiplicand
+ * @param {FixedInt} multiplier
+ */
+function _mul(multiplicand, multiplier) {
+    // Base case
+    if (+multiplier == 0)
+      return new FixedInt(multiplicand.size);
+
+    // Recursive definition of multiplication
+    let product = ALU.shl(_mul(multiplicand, ALU.sar(multiplier, 1)), 1);
+
+    if (multiplier.isOdd()) {
+        product = ALU.add(product, multiplicand);
+    }
+
+    return product;
+}
+
+/**
+ * Helper function for getting the absolute value of a FixedInt
+ * when interpreted as signed.
+ * @param {FixedInt} val
+ */
+function _abs(val) {
+  if (val.isNegative())
+    return ALU.neg(val);
+  else return val;
 }
 
 /**
@@ -628,7 +751,29 @@ function validateOperands(a, b) {
     if (b.size !== a.size)
       throw new FixedIntError(`FixedInt operands must be the same size.  a: ${a.size} b: ${b.size}`);
   } else {
-    b = new FixedInt(a.size, b);
+    b = new FixedInt(a.size, b)
+  }
+
+  return {a, b};
+}
+
+/**
+ * Ensure that the operands are valid sizes for division, and coerce both to FixedInt
+ * @param {FixedInt} a
+ * @param {FixedInt|Number} b
+ * @returns {{a: FixedInt, b: FixedInt}}
+ * @throws {FixedIntError} if a is not twice the size of b, a is not FixedInt, or a.size == 1
+ */
+function validateDivision(a, b) {
+  // Validate type
+  if (!(a instanceof FixedInt) || a.size == 1)
+    throw new FixedIntError('First operand must be instance of FixedInt with size > 1');
+
+  if (b instanceof FixedInt) {
+    if (2*b.size !== a.size)
+      throw new FixedIntError(`Dividend must be double the size of divisor. a: ${a.size} b: ${b.size}`);
+  } else {
+    b = new FixedInt(a.size / 2, b);
   }
 
   return {a, b};

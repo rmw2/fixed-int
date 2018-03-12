@@ -68,10 +68,12 @@ describe('FixedInt objects', () => {
 	// Repeat set of tests for all safe integer sizes
 	for (const size of [1,2,4]) {
 		test(`correctly determine ${size}-byte equality, valueOf`, () => {
+			// Test signed valueOf
+			expect(MAX[size].valueOf(true)).toEqual(-1);
+
 			for (let i = 0; i < N_RAND; i++) {
 				/* Test valueOf */
 				let x = random(size);
-
 				expect(+x).toEqual(x.lo);
 
 				/* Test equality */
@@ -155,6 +157,29 @@ describe('FixedInt objects', () => {
 				expect(view.getUint32(0, true)).toEqual(+x);
 			}
 		});
+	}
+
+	// Conversion tests
+	for (const size of [1,2,4,8]) {
+		for (const newSize of [1,2,4,8]) {
+			test(`convert ${size}-byte values to ${newSize}-bytes`, () => {
+				for (let i = 0; i < N_RAND; i++) {
+					let x = random(size);
+					expect(+x.toSize(newSize)).toBe(
+						(size <= newSize) ? +x : (+x & VAL_MASK[newSize]) >>> 0
+					);
+				}
+			});
+
+			if (size < newSize) {
+				test(`sign-extend ${size}-byte values to ${newSize}-bytes`, () => {
+					for (let i = 0; i < N_RAND; i++) {
+						let x = random(size);
+						expect(x.toSize(newSize, true).valueOf(true)).toBe(x.valueOf(true));
+					}
+				});
+			}
+		}
 	}
 
 	// Test 8-byte integers separately
@@ -284,27 +309,64 @@ describe('8,16, & 32-bit ALU', () => {
 			}
 		});
 
-		test(`performs ${size}-byte multiplication`, () => {
-			// Multiply by 0 through 10
+		test(`performs ${size}-byte multiplication on positive numbers`, () => {
+			// Multiply by -10 through 10
 			for (let i = 0; i < 10; i++) {
 				let val = (MODULUS[size] * Math.random() / i | 0) >>> 0;
 				let x = new FixedInt(size, val);
-				expect(+ALU.mul(x, i)).toEqual(i*val);
+				expect(ALU.mul(x, i).valueOf(true)).toEqual(i*val);
 			}
 		});
 
-		test.skip(`performs ${size}-byte division`, () => {
-			// Throw error on division by zero
-			let tester = new FixedInt(size, TESTVAL);
-			expect(() => ALU.div(tester, ZERO[size])).toThrow();
-			expect(() => ALU.div(tester, 0)).toThrow();
-
-			// Divide by 1 through 10
-			for (let i = 1; i < 10; i++) {
-				let val = (MODULUS[size] * Math.random() | 0) >>> 0;
+		test(`performs ${size}-byte signed multiplication on negative numbers`, () => {
+			// Multiply by -10 through 0
+			for (let i = -10; i < 0; i++) {
+				let val = (MODULUS[size] * Math.random() / i) >>> 0;
 				let x = new FixedInt(size, val);
-				expect(+ALU.div(x, i)).toEqual(val / i);
-				expect(+ALU.aux).toEqual(val % i);
+
+				let result = ALU.mul(x, i).valueOf(true);
+				console.log(`ALU.mul(${x.valueOf(true)}, ${i}) = ${result.valueOf(true)}`);
+				console.log(`${x.valueOf(true)}*${i} = ${i*x.valueOf(true)}`);
+				expect(result).toEqual(i*x.valueOf(true));
+			}
+		});
+
+		test(`performs ${size}-byte unsigned division`, () => {
+			if (size == 1) {
+				expect(() => ALU.div(MAX[1], 1)).toThrow();
+			} else {
+				// Throw error on division by zero
+				let tester = new FixedInt(size, TESTVAL);
+				expect(() => ALU.div(tester, ZERO[size])).toThrow();
+				expect(() => ALU.div(tester, 0)).toThrow();
+
+				// Divide by 1 through 10
+				for (let i = 1; i < 10; i++) {
+					let val = (MODULUS[size] * Math.random() | 0) >>> 0;
+					let x = new FixedInt(size, val);
+					expect(+ALU.div(x, i)).toEqual(val / i >>> 0);
+					expect(+ALU.aux).toEqual(val % i);
+				}
+			}
+		});
+
+		test(`performs ${size}-byte signed division`, () => {
+			if (size == 1) {
+				expect(() => ALU.div(MAX[1], 1)).toThrow();
+			} else {
+				// Throw error on division by zero
+				let tester = new FixedInt(size, TESTVAL);
+				expect(() => ALU.idiv(tester, ZERO[size])).toThrow();
+				expect(() => ALU.idiv(tester, 0)).toThrow();
+
+				// Divide by 1 through 10
+				for (let i = -10; i < 10; i++) {
+					if (i == 0) continue;
+					let val = (MODULUS[size] * Math.random() | 0) >>> 0;
+					let x = new FixedInt(size, val);
+					expect(ALU.idiv(x, i).valueOf(true)).toEqual(val / i | 0);
+					expect(ALU.aux.valueOf(true)).toEqual(val % i);
+				}
 			}
 		});
 
@@ -423,7 +485,7 @@ describe('64-bit ALU Arithmetic', () => {
 		}
 	});
 
-	test(`performs 8-byte multiplication`, () => {
+	test.skip(`performs 8-byte multiplication`, () => {
 		// Multiply by 0 through 10
 		for (let i = 0; i < 10; i++) {
 			let val = (Number.MAX_SAFE_INTEGER * Math.random() / i | 0) >>> 0;
@@ -547,12 +609,6 @@ describe('64-bit ALU Arithmetic', () => {
 			let shl = ALU.shl(x, shift);
 			let shr = ALU.shr(x, shift);
 			let sar = ALU.sar(x, shift);
-
-			// console.log(`     shift = ${shift}`);
-			// console.log(`raw: ${pad(hi.toString(2), 32)} ${pad(lo.toString(2), 32)}`);
-			// console.log(`shl: ${pad(shl.hi.toString(2), 32)} ${pad(shl.lo.toString(2), 32)}`);
-			// console.log(`shr: ${pad(shr.hi.toString(2), 32)} ${pad(shr.lo.toString(2), 32)}`);
-			// console.log(`sar: ${pad(sar.hi.toString(2), 32)} ${pad(sar.lo.toString(2), 32)}`);
 
 			expect(shl.lo).toBe((lo << shift) >>> 0);
 			expect(shl.hi).toBe(((hi << shift) | (lo >>> (32 - shift))) >>> 0);
