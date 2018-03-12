@@ -770,8 +770,10 @@ function validateDivision(a, b) {
     throw new FixedIntError('First operand must be instance of FixedInt with size > 1');
 
   if (b instanceof FixedInt) {
-    if (2*b.size !== a.size)
+    if (b.size < 8 && 2*b.size !== a.size)
       throw new FixedIntError(`Dividend must be double the size of divisor. a: ${a.size} b: ${b.size}`);
+    else if (b.size == 8 && a.size !== b.size)
+      throw new FixedIntError(`8-byte divisor requires 8-byte dividend`)
   } else {
     b = new FixedInt(a.size / 2, b);
   }
