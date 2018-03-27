@@ -292,6 +292,11 @@ export default class FixedInt {
    * Write this value to an ArrayBuffer wrapped by a DataView view
    */
   toBuffer(view, offset=0, littleEndian=true) {
+    // If no view is provided, create one
+    if (view == null) {
+      view = new DataView(new ArrayBuffer(this.size));
+    }
+    
     switch (this.size) {
       case 1:
         view.setUint8(offset, this.lo, littleEndian);
@@ -312,6 +317,8 @@ export default class FixedInt {
         }
         break;
     }
+
+    return view;
   }
 }
 
