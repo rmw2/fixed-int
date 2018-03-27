@@ -318,7 +318,7 @@ export default class FixedInt {
         break;
     }
 
-    return view;
+    return view.buffer;
   }
 }
 
