@@ -16,7 +16,7 @@
     "int64",
     "ALU",
     "emulation"
-  ],2
+  ],
   "author": "Rob Whitaker",
   "license": "ISC",
   "bugs": {
