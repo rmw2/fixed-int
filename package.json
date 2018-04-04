@@ -4,7 +4,7 @@
   "description": "A module for handling fixed-width integers and ALU emulation",
   "main": "FixedInt.js",
   "scripts": {
-    "test": "jest --coverage"
+    "test": "jest --coverage && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   },
   "repository": {
     "type": "git",
@@ -16,7 +16,7 @@
     "int64",
     "ALU",
     "emulation"
-  ],
+  ],2
   "author": "Rob Whitaker",
   "license": "ISC",
   "bugs": {
@@ -26,6 +26,7 @@
   "devDependencies": {
     "babel-core": "^6.26.0",
     "babel-jest": "^22.4.3",
+    "coveralls": "^3.0.0",
     "jest": "^22.4.3"
   },
   "dependencies": {
