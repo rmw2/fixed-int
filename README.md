@@ -1,5 +1,5 @@
 ## A Fixed Width Integer module for javascript
-![Version](https://img.shields.io/badge/version-dev-red.svg) [![Build Status](https://travis-ci.org/rmw2/fixed-int.svg?branch=master)](https://travis-ci.org/rmw2/fixed-int) 
+![Version](https://img.shields.io/badge/version-dev-red.svg) [![Build Status](https://travis-ci.org/rmw2/fixed-int.svg?branch=master)](https://travis-ci.org/rmw2/fixed-int) [![Coverage Status](https://coveralls.io/repos/github/rmw2/fixed-int/badge.svg?branch=master)](https://coveralls.io/github/rmw2/fixed-int?branch=master)
 
 Javascript's Number data type is insufficient for arithmetic that requires specific byte-width accuracy.  Bitwise operations are only permitted on values up to 32 bits, and integer precision is lost for values larger than 2^53-1.  This module provides a FixedInt data type for cases where more precise behavior is required for integers of 8, 16, 32, or 64 bits.
 
