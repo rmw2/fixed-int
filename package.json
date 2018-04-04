@@ -1,0 +1,34 @@
+{
+  "name": "fixed-int",
+  "version": "0.1.0",
+  "description": "A module for handling fixed-width integers and ALU emulation",
+  "main": "FixedInt.js",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rmw2/fixed-int.git"
+  },
+  "keywords": [
+    "fixed",
+    "width",
+    "int64",
+    "ALU",
+    "emulation"
+  ],
+  "author": "Rob Whitaker",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rmw2/fixed-int/issues"
+  },
+  "homepage": "https://github.com/rmw2/fixed-int#readme",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-jest": "^22.4.3",
+    "jest": "^22.4.3"
+  },
+  "dependencies": {
+    "babel-preset-env": "^1.6.1"
+  }
+}
